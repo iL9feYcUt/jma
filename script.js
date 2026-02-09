@@ -1,11 +1,28 @@
 // --- 1. 地図の初期化 ---
-const map = L.map('map').setView([36.2048, 138.2529], 5);
+// デフォルトは日本中心、ただしページ初回表示で位置情報が取れればそちらを優先してズーム6にする
+const map = L.map('map').setView([36.2048, 138.2529], 6);
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
     subdomains: 'abcd',
     maxZoom: 19
 }).addTo(map);
+
+// ページ読み込み時に現在地へ移動（許可されれば中心を現在地、ズーム6）
+if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        map.setView([lat, lon], 9);
+    }, err => {
+        // 取得失敗や拒否なら既定のセンター（日本）を維持してズーム6
+        console.warn('Geolocation failed or denied:', err.message || err);
+        map.setView([36.2048, 138.2529], 4);
+    }, {timeout: 5000});
+} else {
+    // geolocation 非対応
+    console.warn('Geolocation not supported');
+}
 
 // --- 都道府県 GeoJSON を読み込んで海と陸地を描画 ---
 fetch('./prefectures.geojson')
