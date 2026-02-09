@@ -165,38 +165,52 @@ function showDetails(station) {
     document.getElementById('current-val').innerText = currentFormatted;
 
     // --- 簡易シミュレーション ---
-    // 過去データの取得はAPI制限等のため、ここでは現在の値に基づいたシミュレーションを表示します
-    // 本格的にやるなら、Python側で過去データも収集してJSONに含める必要があります
-    const dayMax = (Number(station.current) + Math.random() * 3).toFixed(1);
-    const dayMin = (Number(station.current) - Math.random() * 5).toFixed(1);
-    
-    document.getElementById('day-max').innerText = dayMax + "℃";
-    document.getElementById('day-min').innerText = dayMin + "℃";
-    // 観測史上データは固定値（デモ用）
-    document.getElementById('hist-max').innerText = "--"; 
-    document.getElementById('hist-min').innerText = "--"; 
+    // 履歴データがあればそれを使って極値とグラフを作成
+    const history = station.history || [];
 
-    // グラフデータの作成（シミュレーション）
-    const labels = [];
-    const dataPoints = [];
-    for (let i = 24; i >= 0; i--) {
-        const d = new Date();
-        d.setHours(d.getHours() - i);
-        labels.push(d.getHours() + ":00");
-        
-        const hour = d.getHours();
-        const baseTemp = Number(station.current);
-        let variation = Math.sin((hour - 6) / 12 * Math.PI) * 5; 
-        if(hour < 6 || hour > 18) variation -= 2;
+    if (history.length > 0) {
+        // ラベルとデータ
+        const labels = history.map(h => {
+            const d = new Date(h.time);
+            return ("0" + d.getHours()).slice(-2) + ':' + ("0" + d.getMinutes()).slice(-2);
+        });
+        const dataPoints = history.map(h => Math.round(Number(h.temp) * 10) / 10);
 
-        // 数値を小数第一位で丸めて格納（数値型）
-        const value = Math.round((baseTemp + variation * 0.2) * 10) / 10;
-        dataPoints.push(value);
+        // 日内極値（JSON 作成時に計算済みならそちらを優先）
+        const dayMax = (station.day_max !== undefined && station.day_max !== null) ? station.day_max : (Math.max(...dataPoints)).toFixed(1);
+        const dayMin = (station.day_min !== undefined && station.day_min !== null) ? station.day_min : (Math.min(...dataPoints)).toFixed(1);
+
+        document.getElementById('day-max').innerText = (Number(dayMax).toFixed(1)) + "℃";
+        document.getElementById('day-min').innerText = (Number(dayMin).toFixed(1)) + "℃";
+        document.getElementById('hist-max').innerText = (station.hist_max !== null && station.hist_max !== undefined) ? Number(station.hist_max).toFixed(1) + '℃' : '--';
+        document.getElementById('hist-min').innerText = (station.hist_min !== null && station.hist_min !== undefined) ? Number(station.hist_min).toFixed(1) + '℃' : '--';
+
+        renderChart(labels, dataPoints);
+    } else {
+        // 履歴がない場合は従来のシミュレーション（フォールバック）
+        const dayMax = (Number(station.current) + Math.random() * 3).toFixed(1);
+        const dayMin = (Number(station.current) - Math.random() * 5).toFixed(1);
+        document.getElementById('day-max').innerText = dayMax + "℃";
+        document.getElementById('day-min').innerText = dayMin + "℃";
+        document.getElementById('hist-max').innerText = "--";
+        document.getElementById('hist-min').innerText = "--";
+
+        const labels = [];
+        const dataPoints = [];
+        for (let i = 24; i >= 0; i--) {
+            const d = new Date();
+            d.setHours(d.getHours() - i);
+            labels.push(d.getHours() + ":00");
+            const hour = d.getHours();
+            const baseTemp = Number(station.current);
+            let variation = Math.sin((hour - 6) / 12 * Math.PI) * 5;
+            if (hour < 6 || hour > 18) variation -= 2;
+            const value = Math.round((baseTemp + variation * 0.2) * 10) / 10;
+            dataPoints.push(value);
+        }
+        dataPoints[dataPoints.length - 1] = Math.round(Number(station.current) * 10) / 10;
+        renderChart(labels, dataPoints);
     }
-    // 最新の点は現在の値（小数第一位まで丸め）
-    dataPoints[dataPoints.length - 1] = Math.round(Number(station.current) * 10) / 10;
-
-    renderChart(labels, dataPoints);
 }
 
 // Chart.jsでの描画

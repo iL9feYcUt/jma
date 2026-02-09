@@ -8,22 +8,23 @@ import pytz
 # アメダス地点の定義ファイル（緯度経度などが含まれる）
 TABLE_URL = "https://www.jma.go.jp/bosai/amedas/const/amedastable.json"
 
-# --- 日時計算（最新の観測データを探す） ---
-# 気象庁のデータは「10分ごと」に更新されます。
-# 現在時刻から少し戻って、確実にあるデータ（例えば20分前のデータ）を狙います。
+# --- 日時計算（過去24時間分を収集） ---
+# ここでは過去24時間を1時間間隔で取得して、観測履歴として保存します。
+HOURS = 24
 now = datetime.datetime.now(pytz.timezone('Asia/Tokyo'))
-delta = datetime.timedelta(minutes=20)
-target_time = now - delta
 
-# 分を10分単位に丸める（例: 14:38 -> 14:30）
-rounded_minute = (target_time.minute // 10) * 10
-target_time = target_time.replace(minute=rounded_minute, second=0, microsecond=0)
+def round_to_10min(dt: datetime.datetime) -> datetime.datetime:
+    m = (dt.minute // 10) * 10
+    return dt.replace(minute=m, second=0, microsecond=0)
 
-# URL用にフォーマット（例: 20260209190000）
-time_str = target_time.strftime("%Y%m%d%H%M00")
-DATA_URL = f"https://www.jma.go.jp/bosai/amedas/data/map/{time_str}.json"
+# 取得する時刻リスト（最新から過去へ）
+time_list = []
+for h in range(0, HOURS + 1):
+    t = now - datetime.timedelta(hours=h)
+    t = round_to_10min(t)
+    time_list.append(t)
 
-print(f"Fetching data for: {time_str}")
+print(f"Fetching data for {len(time_list)} timestamps from {time_list[-1]} to {time_list[0]}")
 
 # --- データ取得 ---
 try:
@@ -32,32 +33,67 @@ try:
     resp_table.raise_for_status()
     table_data = resp_table.json()
 
-    # 2. 観測データの取得
-    resp_data = requests.get(DATA_URL)
-    resp_data.raise_for_status()
-    obs_data = resp_data.json()
+    # 2. 各時刻の観測データを順次取得して、駅ごとの履歴を作る
+    station_hist = {}  # station_id -> list of (time, temp)
+    for t in time_list:
+        time_str = t.strftime("%Y%m%d%H%M00")
+        data_url = f"https://www.jma.go.jp/bosai/amedas/data/map/{time_str}.json"
+        try:
+            r = requests.get(data_url, timeout=10)
+            if not r.ok:
+                # 時刻に対応するデータがない場合もある
+                # スキップして次へ
+                # print(f"no data for {time_str}")
+                continue
+            obs = r.json()
+        except Exception:
+            continue
 
-    # --- データ結合 ---
+        for station_id, obs_item in obs.items():
+            if "temp" not in obs_item:
+                continue
+            temp_list = obs_item.get("temp")
+            if not temp_list or temp_list[0] is None:
+                continue
+            temp = temp_list[0]
+            station_hist.setdefault(station_id, []).append({
+                "time": t.isoformat(),
+                "temp": temp
+            })
+
+    # --- 結果組み立て ---
     result_list = []
 
     for station_id, info in table_data.items():
-        # "temp"（気温）のデータがある地点のみ処理
-        if station_id in obs_data and "temp" in obs_data[station_id]:
-            temp_list = obs_data[station_id]["temp"]
-            
-            # temp_list は [気温, 品質フラグ] の形。品質フラグが0（正常）か確認しても良いが、今回は簡易的に取得。
-            if temp_list and temp_list[0] is not None:
-                current_temp = temp_list[0]
-                
-                # 必要な情報だけを辞書にする
-                station_data = {
-                    "id": station_id,
-                    "name": info.get("kjName", "不明"),  # 日本語名
-                    "lat": info.get("lat", [0, 0])[0] + info.get("lat", [0, 0])[1] / 60, # 度分を度に変換
-                    "lon": info.get("lon", [0, 0])[0] + info.get("lon", [0, 0])[1] / 60,
-                    "current": current_temp
-                }
-                result_list.append(station_data)
+        hist = station_hist.get(station_id, [])
+        # 時系列を昇順に
+        hist = sorted(hist, key=lambda x: x["time"]) if hist else []
+
+        # 当日（nowの年月日）に該当する観測だけで日内極値を算出
+        day_entries = [h for h in hist if datetime.datetime.fromisoformat(h["time"]).astimezone(pytz.timezone('Asia/Tokyo')).date() == now.date()]
+        day_max = max([h["temp"] for h in day_entries]) if day_entries else None
+        day_min = min([h["temp"] for h in day_entries]) if day_entries else None
+
+        # 履歴全体からの最大/最小（簡易的な観測史）
+        hist_max = max([h["temp"] for h in hist]) if hist else None
+        hist_min = min([h["temp"] for h in hist]) if hist else None
+
+        # 現在値は最新時刻の値を使う（履歴があれば）
+        current = hist[-1]["temp"] if hist else None
+
+        station_data = {
+            "id": station_id,
+            "name": info.get("kjName", "不明"),
+            "lat": info.get("lat", [0, 0])[0] + info.get("lat", [0, 0])[1] / 60,
+            "lon": info.get("lon", [0, 0])[0] + info.get("lon", [0, 0])[1] / 60,
+            "current": current,
+            "history": hist,
+            "day_max": day_max,
+            "day_min": day_min,
+            "hist_max": hist_max,
+            "hist_min": hist_min
+        }
+        result_list.append(station_data)
 
     # --- JSONファイルとして保存 ---
     with open("weather_data.json", "w", encoding="utf-8") as f:
