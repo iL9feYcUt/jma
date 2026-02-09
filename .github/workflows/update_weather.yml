@@ -2,9 +2,9 @@ name: Update Weather Data
 
 on:
   schedule:
-    # 1時間ごとに実行 (cron形式: 分 時 日 月 曜日)
-    # 毎時5分に実行して、確実にデータがある時間を狙う
-    - cron: '2 * * * *'
+    # 実行スケジュール（cron形式: 分 時 日 月 曜日）
+    # 毎時05,15,25,35,45,55分に実行します
+    - cron: '5,15,25,35,45,55 * * * *'
   workflow_dispatch: # 手動実行ボタンも有効にする
 
 jobs:
@@ -15,7 +15,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Set up Python
+    - name: Set up Pythonpython
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
