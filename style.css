@@ -10,16 +10,51 @@ body, html {
 #map {
     height: 100%;
     width: 100%;
-    background: #aadaff; /* 海の色っぽく */
+    background: #bfe6ff; /* 海の色っぽく（やや明るめ） */
 }
 
 /* 地図上の気温ラベル（数字） */
 .temp-label {
     font-weight: bold;
     text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff;
-    font-size: 15px;
+    font-size: 18px; /* 文字を少し大きく */
     white-space: nowrap;
     text-align: center;
+}
+
+/* 温度が5℃以上のときに黒縁をつける */
+.temp-label.hot {
+    /* 黒い縁取りを強めに入れる（白の縁より優先） */
+    text-shadow:
+        -1px -1px 0 #000,
+         1px -1px 0 #000,
+        -1px  1px 0 #000,
+         1px  1px 0 #000,
+         0 0 4px rgba(0,0,0,0.25);
+}
+
+/* 地点名（数字の下に小さく表示） */
+.temp-label .station-name {
+    display: block;
+    font-size: 11px;
+    line-height: 1;
+    margin-top: -2px;
+    color: rgba(0,0,0,0.85);
+    text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff;
+}
+
+/* 四角マーカー（縮小時に表示） */
+.square-label {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.6) inset;
+    border: 1px solid rgba(0,0,0,0.15);
+}
+
+/* Leafletタイルの色味を調整して陸地を緑、海を淡い青に近づける */
+.leaflet-tile {
+    filter: hue-rotate(45deg) saturate(0.9) brightness(0.96) contrast(0.95);
 }
 
 /* 詳細パネル */
@@ -57,7 +92,7 @@ body, html {
 .stats-table th, .stats-table td {
     border-bottom: 1px solid #ddd;
     padding: 5px;
-    font-size: 14px;
+    font-size: 15px; /* パネル内の文字をやや大きく */
 }
 
 .chart-container {
