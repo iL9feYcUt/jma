@@ -17,7 +17,7 @@ body, html {
 .temp-label {
     font-weight: bold;
     text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff;
-    font-size: 12px;
+    font-size: 15px;
     white-space: nowrap;
     text-align: center;
 }
