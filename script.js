@@ -93,6 +93,10 @@ const SQUARE_ZOOM_THRESHOLD = 7.5;
 
 function drawMap(stations) {
     stations.forEach(station => {
+        // 気温が数値でない（NaN）の地点は地図に表示しない
+        const t = parseFloat(station.current);
+        if (isNaN(t)) return;
+
         const marker = L.marker([station.lat, station.lon]).addTo(map);
         marker.station = station; // 参照保存
         marker.on('click', () => showDetails(station));

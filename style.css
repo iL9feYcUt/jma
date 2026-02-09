@@ -71,8 +71,15 @@ body, html {
     transition: transform 0.3s ease;
 }
 
+#current-val {
+    font-size: 25px; /* 現在の気温を大きく表示 */
+    font-weight: bold;
+    margin: 0;
+    color: #333;
+}
+
 #info-panel.hidden {
-    transform: translateX(350px); /* 画面外へ隠す */
+    transform: translateX(380px); /* 画面外へ隠す */
 }
 
 #close-btn {

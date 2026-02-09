@@ -4,7 +4,7 @@ on:
   schedule:
     # 1時間ごとに実行 (cron形式: 分 時 日 月 曜日)
     # 毎時5分に実行して、確実にデータがある時間を狙う
-    - cron: '5 * * * *'
+    - cron: '2 * * * *'
   workflow_dispatch: # 手動実行ボタンも有効にする
 
 jobs:
