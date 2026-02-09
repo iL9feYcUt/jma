@@ -3,6 +3,8 @@ import requests
 import datetime
 import pandas as pd
 import pytz
+import csv
+import os
 
 # --- 設定 ---
 # アメダス地点の定義ファイル（緯度経度などが含まれる）
@@ -32,6 +34,28 @@ try:
     resp_table = requests.get(TABLE_URL)
     resp_table.raise_for_status()
     table_data = resp_table.json()
+
+    # --- 観測史（record.csv）を読み込む ---
+    record_map = {}
+    try:
+        if os.path.exists('record.csv'):
+            with open('record.csv', newline='', encoding='utf-8') as rf:
+                reader = csv.reader(rf)
+                for r in reader:
+                    if not r or len(r) < 3:
+                        continue
+                    sid = r[0].strip()
+                    try:
+                        hist_max_val = float(r[1])
+                    except Exception:
+                        hist_max_val = None
+                    try:
+                        hist_min_val = float(r[2])
+                    except Exception:
+                        hist_min_val = None
+                    record_map[sid] = {"hist_max": hist_max_val, "hist_min": hist_min_val}
+    except Exception as e:
+        print('record.csv 読込エラー:', e)
 
     # 2. 各時刻の観測データを順次取得して、駅ごとの履歴を作る
     station_hist = {}  # station_id -> list of (time, temp)
@@ -77,6 +101,14 @@ try:
         # 履歴全体からの最大/最小（簡易的な観測史）
         hist_max = max([h["temp"] for h in hist]) if hist else None
         hist_min = min([h["temp"] for h in hist]) if hist else None
+
+        # record.csv に観測史があれば優先して使う
+        if station_id in record_map:
+            rm = record_map[station_id]
+            if rm.get('hist_max') is not None:
+                hist_max = rm.get('hist_max')
+            if rm.get('hist_min') is not None:
+                hist_min = rm.get('hist_min')
 
         # 現在値は最新時刻の値を使う（履歴があれば）
         current = hist[-1]["temp"] if hist else None
