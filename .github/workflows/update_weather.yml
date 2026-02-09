@@ -1,0 +1,38 @@
+name: Update Weather Data
+
+on:
+  schedule:
+    # 1時間ごとに実行 (cron形式: 分 時 日 月 曜日)
+    # 毎時5分に実行して、確実にデータがある時間を狙う
+    - cron: '5 * * * *'
+  workflow_dispatch: # 手動実行ボタンも有効にする
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests pandas pytz
+
+    - name: Run fetch script
+      run: python fetch_data.py
+
+    - name: Commit and push changes
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add weather_data.json
+        # 変更がない場合はエラーにせず終了
+        git commit -m "Update weather data" || exit 0
+        git push

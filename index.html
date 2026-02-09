@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アメダス風 気温マップ</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <div id="info-panel" class="hidden">
+        <button id="close-btn">×</button>
+        <h2 id="station-name">観測地点</h2>
+        <div class="current-temp">現在: <span id="current-val">--</span>℃</div>
+        
+        <table class="stats-table">
+            <tr>
+                <th>本日の最高</th>
+                <td id="day-max">--</td>
+            </tr>
+            <tr>
+                <th>本日の最低</th>
+                <td id="day-min">--</td>
+            </tr>
+            <tr>
+                <th>観測史上最高</th>
+                <td id="hist-max">--</td>
+            </tr>
+            <tr>
+                <th>観測史上最低</th>
+                <td id="hist-min">--</td>
+            </tr>
+        </table>
+
+        <div class="chart-container">
+            <canvas id="tempChart"></canvas>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
