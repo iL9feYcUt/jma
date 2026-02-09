@@ -5,7 +5,8 @@ const map = L.map('map').setView([36.2048, 138.2529], 6);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
     subdomains: 'abcd',
-    maxZoom: 19
+    maxZoom: 10,
+    minZoom: 4
 }).addTo(map);
 
 // ページ読み込み時に現在地へ移動（許可されれば中心を現在地、ズーム6）
@@ -198,11 +199,36 @@ function showDetails(station) {
         const dataPoints = history.map(h => Math.round(Number(h.temp) * 10) / 10);
 
         // 日内極値（JSON 作成時に計算済みならそちらを優先）
-        const dayMax = (station.day_max !== undefined && station.day_max !== null) ? station.day_max : (Math.max(...dataPoints)).toFixed(1);
-        const dayMin = (station.day_min !== undefined && station.day_min !== null) ? station.day_min : (Math.min(...dataPoints)).toFixed(1);
+        const dayMax = (station.day_max !== undefined && station.day_max !== null) ? Number(station.day_max) : (Math.max(...dataPoints));
+        const dayMin = (station.day_min !== undefined && station.day_min !== null) ? Number(station.day_min) : (Math.min(...dataPoints));
 
-        document.getElementById('day-max').innerText = (Number(dayMax).toFixed(1)) + "℃";
-        document.getElementById('day-min').innerText = (Number(dayMin).toFixed(1)) + "℃";
+        // 極値が観測された時刻を履歴から特定（同じ値が複数あれば最初の時刻を使う）
+        const dayEntries = history.filter(h => {
+            const d = new Date(h.time);
+            const local = new Date(d.getTime() + d.getTimezoneOffset() * 60000 * -1);
+            // 同じ日かどうか（ローカル日本時間基準）
+            return local.getFullYear() === (new Date()).getFullYear() && local.getMonth() === (new Date()).getMonth() && local.getDate() === (new Date()).getDate();
+        });
+
+        function findTimeForValue(entries, val) {
+            if (!entries || entries.length === 0 || val === null || val === undefined) return null;
+            const found = entries.find(e => Number(e.temp) === Number(val));
+            return found ? new Date(found.time) : null;
+        }
+
+        const maxTime = findTimeForValue(dayEntries, dayMax);
+        const minTime = findTimeForValue(dayEntries, dayMin);
+
+        function fmtTime(d) {
+            if (!d) return '';
+            const local = new Date(d);
+            const hh = ('0' + local.getHours()).slice(-2);
+            const mm = ('0' + local.getMinutes()).slice(-2);
+            return hh + ':' + mm;
+        }
+
+        document.getElementById('day-max').innerText = (Number.isFinite(dayMax) ? dayMax.toFixed(1) + '℃' : '--') + (maxTime ? ' (' + fmtTime(maxTime) + ')' : '');
+        document.getElementById('day-min').innerText = (Number.isFinite(dayMin) ? dayMin.toFixed(1) + '℃' : '--') + (minTime ? ' (' + fmtTime(minTime) + ')' : '');
         document.getElementById('hist-max').innerText = (station.hist_max !== null && station.hist_max !== undefined) ? Number(station.hist_max).toFixed(1) + '℃' : '--';
         document.getElementById('hist-min').innerText = (station.hist_min !== null && station.hist_min !== undefined) ? Number(station.hist_min).toFixed(1) + '℃' : '--';
 

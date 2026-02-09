@@ -106,3 +106,10 @@ body, html {
     margin-top: 15px;
     height: 200px;
 }
+
+.note {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #333;
+    opacity: 0.9;
+}
