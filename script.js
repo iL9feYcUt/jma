@@ -1,78 +1,85 @@
 // --- 1. 地図の初期化 ---
-// 日本の中心あたりを表示
 const map = L.map('map').setView([36.2048, 138.2529], 5);
 
-// 地図タイル（背景）の設定：今回はシンプルで見やすいCartoDBを使用
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
     subdomains: 'abcd',
     maxZoom: 19
 }).addTo(map);
 
-// --- 2. データの準備（シミュレーション） ---
-// 本番ではここで気象庁のJSONなどをfetchしますが、まずは動くモックデータを作ります
-const stations = [
-    { name: "東京", lat: 35.6895, lon: 139.6917, current: 15.2 },
-    { name: "大阪", lat: 34.6937, lon: 135.5023, current: 16.5 },
-    { name: "札幌", lat: 43.0618, lon: 141.3545, current: 5.1 },
-    { name: "那覇", lat: 26.2124, lon: 127.6809, current: 24.8 },
-    { name: "仙台", lat: 38.2682, lon: 140.8694, current: 11.3 },
-    { name: "福岡", lat: 33.5904, lon: 130.4017, current: 17.2 },
-    { name: "新潟", lat: 37.9162, lon: 139.0364, current: 10.5 },
-    { name: "名古屋", lat: 35.1815, lon: 136.9066, current: 15.8 }
-];
+// --- 2. データの読み込みと表示 ---
+// GitHub Actionsが生成した weather_data.json を読み込む
+fetch('./weather_data.json')
+    .then(response => {
+        if (!response.ok) {
+            throw new Error("HTTP error " + response.status);
+        }
+        return response.json();
+    })
+    .then(stations => {
+        // データ読み込み成功時の処理
+        drawMap(stations);
+    })
+    .catch(error => {
+        console.error("データの読み込みに失敗しました:", error);
+        // エラー時はダミーデータを表示するなどの処理を入れても良い
+    });
 
-// 色を決める関数（気温によって色を変える）
+// 色を決める関数
 function getColor(temp) {
-    if (temp >= 30) return '#ff0000'; // 真夏日
-    if (temp >= 25) return '#ff8c00'; // 夏日
-    if (temp >= 15) return '#008000'; // 快適
-    if (temp >= 10) return '#1e90ff'; // 肌寒い
-    return '#0000ff'; // 寒い
+    if (temp >= 35) return '#b40068'; // 猛暑日（紫）
+    if (temp >= 30) return '#ff2800'; // 真夏日（赤）
+    if (temp >= 25) return '#ff9900'; // 夏日（オレンジ）
+    if (temp >= 20) return '#ffcc00'; 
+    if (temp >= 15) return '#ffff00'; 
+    if (temp >= 10) return '#0099ff'; 
+    if (temp >= 5) return '#0000ff';
+    return '#002080'; // 氷点下（濃い青）
 }
 
 // グラフのインスタンス保持用
 let tempChart = null;
 
-// --- 3. マーカーの配置 ---
-stations.forEach(station => {
-    // 数値を表示するためのカスタムアイコンを作成
-    const tempColor = getColor(station.current);
-    const myIcon = L.divIcon({
-        className: 'temp-label',
-        html: `<div style="color:${tempColor}; font-size:14px;">${station.current}</div>`,
-        iconSize: [40, 20]
+function drawMap(stations) {
+    stations.forEach(station => {
+        const tempColor = getColor(station.current);
+        
+        // 数値を表示するためのカスタムアイコン
+        const myIcon = L.divIcon({
+            className: 'temp-label',
+            html: `<div style="color:${tempColor}; font-size:12px; text-shadow: 1px 1px 0 #fff;">${station.current}</div>`,
+            iconSize: [40, 20]
+        });
+
+        const marker = L.marker([station.lat, station.lon], { icon: myIcon }).addTo(map);
+
+        marker.on('click', () => {
+            showDetails(station);
+        });
     });
+}
 
-    // マーカーを追加
-    const marker = L.marker([station.lat, station.lon], { icon: myIcon }).addTo(map);
-
-    // クリックイベント
-    marker.on('click', () => {
-        showDetails(station);
-    });
-});
-
-// --- 4. 詳細表示とグラフ描画 ---
+// --- 3. 詳細表示 ---
 function showDetails(station) {
     const panel = document.getElementById('info-panel');
     panel.classList.remove('hidden');
 
-    // 基本情報の流し込み
     document.getElementById('station-name').innerText = station.name;
     document.getElementById('current-val').innerText = station.current;
 
-    // データ生成（実際はAPIから過去データを取得します）
-    // ここではランダムなそれっぽいデータを生成しています
-    const dayMax = (station.current + Math.random() * 5).toFixed(1);
+    // --- 簡易シミュレーション ---
+    // 過去データの取得はAPI制限等のため、ここでは現在の値に基づいたシミュレーションを表示します
+    // 本格的にやるなら、Python側で過去データも収集してJSONに含める必要があります
+    const dayMax = (station.current + Math.random() * 3).toFixed(1);
     const dayMin = (station.current - Math.random() * 5).toFixed(1);
     
     document.getElementById('day-max').innerText = dayMax + "℃";
     document.getElementById('day-min').innerText = dayMin + "℃";
-    document.getElementById('hist-max').innerText = (parseFloat(dayMax) + 10).toFixed(1) + "℃"; // 仮
-    document.getElementById('hist-min').innerText = "-2.5℃"; // 仮
+    // 観測史上データは固定値（デモ用）
+    document.getElementById('hist-max').innerText = "--"; 
+    document.getElementById('hist-min').innerText = "--"; 
 
-    // グラフデータの作成（過去24時間分をシミュレート）
+    // グラフデータの作成（シミュレーション）
     const labels = [];
     const dataPoints = [];
     for (let i = 24; i >= 0; i--) {
@@ -80,10 +87,19 @@ function showDetails(station) {
         d.setHours(d.getHours() - i);
         labels.push(d.getHours() + ":00");
         
-        // サインカーブっぽく気温を変動させる
-        const variation = Math.sin(i/3) * 3; 
-        dataPoints.push(station.current - variation);
+        // 現在気温を基準に、サインカーブで日内変動っぽく見せる
+        // 昼（12-14時）が高くなるように調整
+        const hour = d.getHours();
+        const baseTemp = station.current;
+        let variation = Math.sin((hour - 6) / 12 * Math.PI) * 5; 
+        // 夜は下げる
+        if(hour < 6 || hour > 18) variation -= 2;
+
+        // 現在値との差分を調整（あくまでデモロジックです）
+        dataPoints.push((baseTemp + variation * 0.2).toFixed(1)); 
     }
+    // 最新の点は現在の値に合わせる
+    dataPoints[dataPoints.length - 1] = station.current;
 
     renderChart(labels, dataPoints);
 }
@@ -91,22 +107,18 @@ function showDetails(station) {
 // Chart.jsでの描画
 function renderChart(labels, data) {
     const ctx = document.getElementById('tempChart').getContext('2d');
-
-    // 既存のチャートがあれば破棄（二重描画防止）
-    if (tempChart) {
-        tempChart.destroy();
-    }
+    if (tempChart) tempChart.destroy();
 
     tempChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
             datasets: [{
-                label: '過去24時間の気温',
+                label: '気温推移(イメージ)',
                 data: data,
-                borderColor: 'rgba(75, 192, 192, 1)',
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                tension: 0.4, // 曲線を滑らかに
+                borderColor: '#f80',
+                backgroundColor: 'rgba(255, 136, 0, 0.2)',
+                tension: 0.4,
                 fill: true
             }]
         },
@@ -114,15 +126,12 @@ function renderChart(labels, data) {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: {
-                    beginAtZero: false
-                }
+                y: { beginAtZero: false }
             }
         }
     });
 }
 
-// 閉じるボタン
 document.getElementById('close-btn').addEventListener('click', () => {
     document.getElementById('info-panel').classList.add('hidden');
 });
